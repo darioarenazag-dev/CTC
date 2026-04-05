@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="claro">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ControlaTusCuentas - Inicio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div class="header-top">
+            <div id="marca-slot"></div>
+            <div class="header-top-actions">
+                <div id="tema-slot"></div>
+                <div id="usuario-slot"></div>
+            </div>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="activo">Inicio</a>
+            <a href="registro.html">Registrar</a>
+            <a href="resumen.html">Resumen</a>
+        </nav>
+    </header>
+    <main id="app"></main>
+    <footer>
+        <p>© 2026 ControlaTusCuentas</p>
+    </footer>
+    <script type="module">
+        import { InicioController } from './src/controllers/InicioController.js';
+        const controller = new InicioController(document.getElementById('app'));
+        controller.iniciar();
+    </script>
+</body>
+
+</html>
