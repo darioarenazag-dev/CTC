@@ -1,0 +1,125 @@
+sequenceDiagram
+  autonumber
+  participant U as Usuario
+  participant BC as BaseController
+  participant AC as AuthController
+  participant AM as AuthManager
+  participant TM as ThemeManager
+  participant IC as InicioController
+  participant DS as DivisasService
+  participant API as ExchangeRate API
+  participant RC as RegistroController
+  participant SM as StorageManager
+  participant RSC as ResumenController
+  participant DOM as DomManager
+ 
+  rect rgb(230,241,251)
+    Note over U,DOM: Flujo 1 — Carga de index.html (sin sesión)
+    U->>IC: iniciar()
+    IC->>BC: _inicializarBase(false)
+    BC->>TM: inicializarTema(btnTema)
+    TM-->>BC: tema aplicado
+    BC->>AM: obtenerSesion()
+    AM-->>BC: null
+    BC->>DOM: htmlBtnAcceder()
+    DOM-->>BC: HTML botón Acceder
+    IC->>DS: cargarTasas("EUR")
+    DS->>API: GET /v6/latest/EUR
+    API-->>DS: JSON tasas
+    DS-->>IC: tasas cargadas
+    IC->>DOM: poblarSelectMonedas()
+    IC->>DOM: crearTarjetaTasa() ×8
+    DOM-->>U: widget divisas renderizado
+  end
+ 
+  rect rgb(238,237,254)
+    Note over U,DOM: Flujo 2 — Login desde modal del header
+    U->>BC: click "Acceder"
+    BC->>DOM: htmlModalLogin("login")
+    DOM-->>U: modal visible
+    U->>BC: submit email + password
+    BC->>AM: iniciarSesion({email, password})
+    AM->>AM: hashSimple(password)
+    alt credenciales correctas
+      AM-->>BC: ok: true
+      BC->>U: location.reload()
+      BC->>AM: obtenerSesion()
+      AM-->>BC: sesion activa
+      BC->>DOM: htmlBtnUsuario(sesion)
+      DOM-->>U: avatar usuario en header
+    else credenciales incorrectas
+      AM-->>BC: ok: false, error
+      BC->>DOM: mostrarError(mensaje)
+      DOM-->>U: error visible 4s
+    end
+  end
+ 
+  rect rgb(234,243,222)
+    Note over U,DOM: Flujo 3 — Registro de transacción
+    U->>RC: iniciar()
+    RC->>BC: _inicializarBase(true)
+    BC->>AM: protegerPagina("login.html")
+    AM-->>BC: sesión válida
+    RC->>DS: cargarTasas("EUR")
+    DS->>API: GET /v6/latest/EUR
+    API-->>DS: JSON tasas
+    RC->>DOM: poblarSelectMonedas()
+    DOM-->>U: formulario listo
+    U->>RC: input monto / moneda
+    RC->>DS: convertir(monto, moneda, "EUR")
+    DS-->>RC: montoEnEur
+    RC->>DOM: conversión info en tiempo real
+    U->>RC: submit formulario
+    RC->>SM: guardarTransaccion({...montoEnEur})
+    SM->>SM: localStorage.setItem()
+    SM-->>RC: guardado
+    RC->>SM: mostrarToast("Transacción guardada ✓")
+    SM-->>U: toast visible
+  end
+ 
+  rect rgb(250,238,218)
+    Note over U,DOM: Flujo 4 — Resumen con filtros y eliminación
+    U->>RSC: iniciar()
+    RSC->>BC: _inicializarBase(true)
+    RSC->>SM: calcularResumen()
+    SM->>SM: leerTransacciones()
+    SM-->>RSC: {ingresos, gastos, ahorro, transacciones}
+    RSC->>DOM: htmlMetricas() — métricas globales
+    RSC->>SM: calcularResumen() para gráfico
+    RSC->>DOM: htmlGrafico(datosPorCategoria)
+    DOM-->>U: barras por categoría renderizadas
+    RSC->>SM: filtrarTransacciones(filtros)
+    SM-->>RSC: transacciones filtradas
+    RSC->>DOM: crearItemTransaccion() × N
+    DOM-->>U: lista renderizada
+    U->>RSC: cambia filtro (input/select/fecha)
+    RSC->>SM: filtrarTransacciones(filtros actualizados)
+    SM-->>RSC: subset actualizado
+    RSC->>DOM: vaciar + repoblar lista
+    DOM-->>U: lista actualizada sin recarga
+    U->>RSC: click eliminar transacción
+    RSC->>SM: eliminarTransaccion(id)
+    SM->>SM: localStorage.setItem() sin ese id
+    RSC->>SM: calcularResumen()
+    RSC->>DOM: actualizar métricas + gráfico + lista
+    DOM-->>U: UI actualizada
+  end
+ 
+  rect rgb(252,235,235)
+    Note over U,DOM: Flujo 5 — Exportación CSV y PDF
+    U->>RSC: click "CSV"
+    RSC->>SM: filtrarTransacciones(filtros)
+    SM-->>RSC: transacciones
+    alt hay transacciones
+      RSC->>SM: exportarCSV(transacciones)
+      SM->>U: Blob CSV descargado
+      RSC->>SM: mostrarToast("CSV exportado ✓")
+    else lista vacía
+      RSC->>SM: mostrarToast("⚠️ Sin datos")
+    end
+    U->>RSC: click "PDF"
+    RSC->>SM: filtrarTransacciones(filtros)
+    RSC->>SM: calcularResumen()
+    RSC->>SM: exportarPDF(transacciones, resumen)
+    SM->>U: window.open() + print dialog
+  end
